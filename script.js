@@ -92,7 +92,8 @@ function calcular() {
 
 	const { easyMin, easyMax, marathon, threshold, interval, repetition, prova5k } = dados;
 
-	const easyMedio = (easyMin + easyMax) / 2;
+	const easyMedio = (easyMin + easyMax) / 2,
+		provaPace = prova5k / 5;
 
 	const calculaFaixa = (base, min, max) => ({
 		min: base * min,
@@ -102,7 +103,7 @@ function calcular() {
 		leve: calculaFaixa(easyMedio, 0.97, 1.01),
 		limiar: calculaFaixa(repetition, 0.98, 1),
 		longo: calculaFaixa(marathon, 0.96, 1),
-		ritmoProva: calculaFaixa(prova5k, 0.977, 1),
+		ritmoProva: calculaFaixa(provaPace, 0.977, 1),
 	};
 	const metricas = {
 		calculados,
