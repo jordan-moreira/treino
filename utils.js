@@ -13,9 +13,13 @@ export function pace(segundos) {
 	return `${min}:${seg}`;
 }
 
+function faixaObj(obj) {
+	return faixa(obj.min, obj.max);
+}
+
 export function faixa(min, max) {
 	let media = (min + max) / 2;
-	return `${pace(min)}<${pace(media)}>${pace(max)}`;
+	return `${pace(min)} < ${pace(media)} > ${pace(max)}`;
 }
 
 export function gerarTextoTreino(metricas) {
@@ -24,53 +28,53 @@ export function gerarTextoTreino(metricas) {
 
     Segunda-feira – Corrida leve + acelerações
 
-    40min a ${faixa(metricas.base.seg.min, metricas.base.seg.max)}
+    40min a ${faixaObj(metricas.base.seg)}
     6x100m acelerações
 
 
     Terça-feira – Intervalados VO₂máx
 
-    Sem. 1–4: 5–6x800m a ${faixa(metricas.base.terS1_4.min, metricas.base.terS1_4.max)} | 2min trote
-    Sem. 5–7: 6x1000m a ${faixa(metricas.base.terS5_7.min, metricas.base.terS5_7.max)} | 2–3min trote
-    Sem. 8–10: 6–8x1000m a ${faixa(metricas.base.terS8_10.min, metricas.base.terS8_10.max)} | 2–3min trote
+    Sem. 1–4: 5–6x800m a ${faixaObj(metricas.base.terS1_4)} | 2min trote
+    Sem. 5–7: 6x1000m a ${faixaObj(metricas.base.terS5_7)} | 2–3min trote
+    Sem. 8–10: 6–8x1000m a ${faixaObj(metricas.base.terS8_10)} | 2–3min trote
 
 
     Quarta-feira – Pliometria + Força
 
-    20min a ${faixa(metricas.base.qua.min, metricas.base.qua.max)}
+    20min a ${faixaObj(metricas.base.qua)}
 
 
     Quinta-feira – TREINO DE LIMIAR
 
     Sem. 1–4:
-        6km a ${faixa(metricas.base.quiS1_4.min, metricas.base.quiS1_4.max)}
-        2x400m ritmo de prova | 2min trote
+        6km a ${faixaObj(metricas.base.quiS1_4)}
+        2x400m a ritmo de prova (${faixaObj(metricas.base.quiS5_10)}) | 2min trote
 
     Sem. 5–7:
-        20min contínuos a ${faixa(metricas.base.quiS5_7.min, metricas.base.quiS5_7.max)}
+        20min contínuos a ${faixaObj(metricas.base.quiS5_10)}
         2x300m leves/rápidos | 2min trote
 
     Sem. 8–10:
-        4x8min a ${pace(metricas.base.quiS8_10)} | 90s trote
-        1x400m ritmo de prova
+        4x8min a ${faixaObj(metricas.base.quiS5_10)}
+        1x400m a ritmo de prova (${faixaObj(metricas.calculados.ritmoProva)})
 
 
     Sexta-feira – Corrida leve + acelerações
 
-    50min a ${faixa(metricas.preCompetitiva.sex, metricas.base.seg.max)}
+    50min a ${faixaObj(metricas.base.sex)}
     4x100m acelerações
 
 
     Sábado – Longão + ritmo de prova
 
     Sem. 1–4:
-        7km a ${pace(metricas.PM)}
-        3km a ${faixa(metricas.temporada.quiB.min, metricas.temporada.quiB.max)}
+        7km a ${faixaObj(metricas.calculados.longo)}
+        3km a ${faixaObj(metricas.base.quiS5_10)}
 
     Sem. 5–10:
-        7km a ${pace(metricas.PM)}
-        2km limiar (${faixa(metricas.temporada.qui_bMin, metricas.temporada.qui_bMax)})
-        1km ritmo de prova (${faixa(metricas.temporada.quiCMin, metricas.temporada.quiCMax)})
+        7km a ${faixaObj(metricas.calculados.longo)}
+        2km limiar (${faixaObj(metricas.base.quiS5_10)})
+        1km a ritmo de prova (${faixaObj(metricas.calculados.ritmoProva)})
 
 
     Domingo – Core e mobilidade
@@ -81,50 +85,52 @@ export function gerarTextoTreino(metricas) {
 
     Segunda-feira – Corrida leve + acelerações
 
-    8–10km a ${faixa(metricas.preCompetitiva.seg, metricas.base.seg.max)}
+    8–10km a ${faixaObj(metricas.temporada.seg)}
     6–8x100m acelerações
 
 
     Terça-feira – Intervalados de VO₂máx / velocidade
 
-    6–8x800–1000m a ${faixa(metricas.temporada.ter.min, metricas.temporada.ter.max)}
+    6–8x800–1000m a ${faixaObj(metricas.temporada.ter)}
     90–180s trote
 
 
     Quarta-feira – Pliometria + Força
 
+    20min a ${faixaObj(metricas.temporada.qua)}
+    
 
     Quinta-feira – Limiar (ajuste principal da Temporada)
 
     Sem.A:
-        6km a ${faixa(metricas.temporada.quiA.min, metricas.temporada.quiA.max)}
+        6km a ${faixaObj(metricas.temporada.quiA)}
         2x400m ritmo de prova
 
     Sem.B:
-        5x7min a ${faixa(metricas.temporada.quiB.min, metricas.temporada.quiB.max)} | 70s trote
+        5x7min a ${faixaObj(metricas.temporada.quiB)} | 70s trote
         1x400m forte (técnico, não exaustivo)
 
     Sem.C:
-        4km a ${faixa(metricas.temporada.quiC.min, metricas.temporada.quiC.max)}
+        4km a ${faixaObj(metricas.temporada.quiC)}
         2x800m a ritmo de prova
 
 
     Sexta-feira – Corrida leve + acelerações
 
-    6–8km a ${faixa(metricas.preCompetitiva.sex, metricas.base.seg.max)}
+    6–8km a ${faixaObj(metricas.temporada.sex)}
     4–6x100m acelerações
 
 
     Sábado – Longão + Ritmo de Prova
 
     Semana leve:
-        6–8km a ${pace(metricas.PM)}
-        1–2km de limiar (${faixa(metricas.temporada.quiB.min, metricas.temporada.quiB.max)})
-        1–2km ritmo de prova
+        6–8km a ${faixaObj(metricas.calculados.longo)}
+        1–2km de limiar (${faixaObj(metricas.temporada.quiB)})
+        1–2km a ritmo de prova (${faixaObj(metricas.calculados.ritmoProva)})
 
     Semanas pesada:
-        8–10km a ${pace(metricas.PM)}
-        2–3km ritmo de prova
+        8–10km a ${faixaObj(metricas.calculados.longo)}
+        2–3km a ritmo de prova (${faixaObj(metricas.calculados.ritmoProva)})
 
 
     Domingo – Core / Mobilidade / Recuperação leve
@@ -139,17 +145,19 @@ export function gerarTextoTreino(metricas) {
 
     Segunda-feira – Corrida leve + acelerações
 
-    30min a ${pace(metricas.preCompetitiva.seg)}
+    30min a ${faixaObj(metricas.preCompetitiva.seg)}
     4–5x100m acelerações
 
 
     Terça-feira – Intervalados curtos
 
-    4x800m a ritmo de prova (${pace(metricas.P5)})
+    4x800m a ritmo de prova (${faixaObj(metricas.calculados.ritmoProva)})
     2min trote entre séries
 
 
     Quarta-feira – Pliometria leve + core
+
+    20min a ${faixaObj(metricas.preCompetitiva.qua)}
 
 
     Quinta-feira – Corrida de ritmo + tiro curto
@@ -160,7 +168,7 @@ export function gerarTextoTreino(metricas) {
 
     Sexta-feira – Corrida leve
 
-    20min a ${pace(metricas.preCompetitiva.sex)}
+    20min a ${faixaObj(metricas.preCompetitiva.sex)}
 
 
     Sábado – Ajuste conforme dia da competição

@@ -1,23 +1,19 @@
 import { gerarTextoTreino, pace, faixa, minParaSegundos } from "./utils.js";
 
+const CAMPOS = ["easyMin", "easyMax", "marathon", "threshold", "interval", "repetition", "prova5k"],
+	ELEMENTOS = {};
+for (const campo of CAMPOS) {
+	ELEMENTOS[campo] = document.getElementById(campo);
+}
+
 document.getElementById("btnCalcular").addEventListener("click", calcular);
 window.addEventListener("DOMContentLoaded", carregarDados);
 
 function salvarDados() {
-	const campos = [
-		"easyMin",
-		"easyMax",
-		"marathon",
-		"threshold",
-		"interval",
-		"repetition",
-		"prova5k",
-	];
-
 	const dados = {};
 
-	for (const campo of campos) {
-		dados[campo] = document.getElementById(campo).value;
+	for (const campo of CAMPOS) {
+		dados[campo] = ELEMENTOS[campo].value;
 	}
 
 	localStorage.setItem("dadosCalculadora", JSON.stringify(dados));
@@ -31,7 +27,7 @@ function carregarDados() {
 	const dados = JSON.parse(dadosSalvos);
 
 	for (const [campo, valor] of Object.entries(dados)) {
-		const input = document.getElementById(campo);
+		const input = ELEMENTOS[campo];
 
 		if (input) {
 			input.value = valor;
@@ -88,20 +84,10 @@ function criarTabela(nomeTabela, obj) {
 }
 
 function calcular() {
-	const campos = [
-		"easyMin",
-		"easyMax",
-		"marathon",
-		"threshold",
-		"interval",
-		"repetition",
-		"prova5k",
-	];
-
 	const dados = {};
 
-	for (const campo of campos) {
-		dados[campo] = minParaSegundos(document.getElementById(campo).value);
+	for (const campo of CAMPOS) {
+		dados[campo] = minParaSegundos(ELEMENTOS[campo].value);
 	}
 
 	const { easyMin, easyMax, marathon, threshold, interval, repetition, prova5k } = dados;
@@ -112,55 +98,54 @@ function calcular() {
 		min: base * min,
 		max: base * max,
 	});
-
+	const calculados = {
+		leve: calculaFaixa(easyMedio, 0.97, 1.01),
+		limiar: calculaFaixa(repetition, 0.98, 1),
+		longo: calculaFaixa(marathon, 0.96, 1),
+		ritmoProva: calculaFaixa(prova5k, 0.977, 1),
+	};
 	const metricas = {
-		PEmid: easyMedio,
-		PM: marathon,
-		PT: threshold,
-		PI: interval,
-		PR: repetition,
-		P5: prova5k,
+		calculados,
 
 		base: {
-			seg: calculaFaixa(easyMedio, 0.97, 1.01),
+			seg: calculados.leve,
 
 			terS1_4: calculaFaixa(interval, 0.945, 0.969),
 			terS5_7: calculaFaixa(repetition, 1, 1.015),
-			terS8_10: calculaFaixa(repetition, 0.98, 1),
+			terS8_10: calculados.limiar,
 
-			qua: calculaFaixa(easyMedio, 0.97, 1.01),
+			qua: calculados.leve,
 
 			quiS1_4: calculaFaixa(threshold, 1.017, 1.038),
-			quiS5_7: calculaFaixa(threshold, 0.975, 0.996),
-			qui8_10: threshold * 0.975,
+			quiS5_10: calculados.limiar,
 
-			sex: calculaFaixa(easyMedio, 0.97, 1.01),
+			sex: calculados.leve,
 		},
 
 		temporada: {
-			seg: calculaFaixa(easyMedio, 0.97, 1.01),
+			seg: calculados.leve,
 
 			ter: calculaFaixa(interval, 0.876, repetition / interval),
 
-			qua: calculaFaixa(easyMedio, 0.97, 1.01),
+			qua: calculados.leve,
 
 			quiA: calculaFaixa(threshold, 0.953, 0.996),
 			quiB: calculaFaixa(threshold, 0.966, 0.983),
-			quiC: calculaFaixa(prova5k, 0.977, 1),
+			quiC: calculados.ritmoProva,
 
-			sex: calculaFaixa(easyMedio, 0.97, 1.01),
+			sex: calculados.leve,
 		},
 
 		preCompetitiva: {
-			seg: easyMedio * 0.97,
+			seg: calculados.leve,
 
-			ter: prova5k,
+			ter: calculados.ritmoProva,
 
-			qua: easyMedio * 0.97,
+			qua: calculados.leve,
 
 			qui: threshold * 0.975,
 
-			sex: easyMedio * 0.97,
+			sex: calculados.leve,
 		},
 	};
 
