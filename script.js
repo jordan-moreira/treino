@@ -1,203 +1,491 @@
-import { gerarTextoTreino, pace, faixa, minParaSegundos } from "./utils.js";
+﻿const STORAGE_KEY = "treino-dinamico-state";
 
-const CAMPOS = ["easyMin", "easyMax", "marathon", "threshold", "interval", "repetition", "prova5k"],
-	ELEMENTOS = {};
-for (const campo of CAMPOS) {
-	ELEMENTOS[campo] = document.getElementById(campo);
-}
+const NOME_FASES = {
+	base: "Base",
+	temporada: "Temporada",
+};
 
-document.getElementById("btnCalcular").addEventListener("click", calcular);
-window.addEventListener("DOMContentLoaded", carregarDados);
+const rotulosVariaveis = {
+	levePadrao: "Leve padrao",
+	longaoBase: "Longao base",
+	aceleracao100: "Aceleracao 100m",
+	interval800: "Intervalo 800m",
+	interval1000: "Intervalo 1000m",
+	limiarBase: "Limiar base",
+	limiarConservador: "Limiar conservador",
+	limiarModerado: "Limiar moderado",
+	limiarDescarga: "Limiar descarga",
+	limiarExato: "Limiar exato",
+	rep400Forte: "Repetition 400m forte",
+	rep400Padrao: "Repetition 400m padrao",
+	int200Extensivo: "Intervalo 200m extensivo",
+	int200Velocidade: "Intervalo 200m velocidade",
+	marathonLongao: "Longao marathon",
+	interval400Prova: "Intervalo 400m prova",
+};
 
-function salvarDados() {
-	const dados = {};
+const estadoPadrao = {
+	distancia: 3000,
+	tempo: "10:02",
 
-	for (const campo of CAMPOS) {
-		dados[campo] = ELEMENTOS[campo].value;
+	dataBaseSemana1: formatoDataInput(new Date()),
+	dataConsulta: formatoDataInput(new Date()),
+
+	dataInicioTemporada: null,
+
+	fase: "base",
+	semana: "A",
+	semanaVisualizada: null,
+};
+
+let elementos = {
+	distancia: null,
+	tempo: null,
+	dataBaseSemana1: null,
+	dataConsulta: null,
+	fase: null,
+	semanaAtual: null,
+	semanaAtualBtn: null,
+	gradeSemanas: null,
+	visualizacaoPlano: null,
+	resumoMetricas: null,
+	metricasContainer: null,
+	toggleMetricas: null,
+	navegacaoContainer: null,
+	toggleNavegacao: null,
+	statusSemana: null,
+	descricaoFase: null,
+	metricasBasicas: null,
+};
+let estado = carregarEstado();
+
+window.addEventListener("DOMContentLoaded", iniciar);
+
+function iniciar() {
+	if (!globalThis.plano) {
+		throw new Error("Plano nao encontrado em template.js");
+	}
+	for (const id of Object.keys(elementos)) {
+		elementos[id] = document.getElementById(id);
 	}
 
-	localStorage.setItem("dadosCalculadora", JSON.stringify(dados));
+	aplicarAjustesIniciais();
+	preencherCampos();
+	registrarEventos();
+	renderizar();
 }
 
-function carregarDados() {
-	const dadosSalvos = localStorage.getItem("dadosCalculadora");
+function carregarEstado() {
+	const salvo = localStorage.getItem(STORAGE_KEY);
 
-	if (!dadosSalvos) return;
+	if (!salvo) return { ...estadoPadrao };
 
-	const dados = JSON.parse(dadosSalvos);
+	try {
+		const carregado = { ...estadoPadrao, ...JSON.parse(salvo) };
 
-	for (const [campo, valor] of Object.entries(dados)) {
-		const input = ELEMENTOS[campo];
+		carregado.semana = carregado.semana;
 
-		if (input) {
-			input.value = valor;
+		return carregado;
+	} catch {
+		return { ...estadoPadrao };
+	}
+}
+
+function salvarEstado() {
+	localStorage.setItem(STORAGE_KEY, JSON.stringify(estado));
+}
+
+function preencherCampos() {
+	for (const id of Object.keys(estado)) {
+		const elemento = elementos[id];
+
+		if (!elemento) continue;
+
+		if (id === "dataBaseSemana1" || id === "dataConsulta") {
+			elemento.value = estado[id] || formatoDataInput(hoje());
+		} else {
+			elemento.value = estado[id] ?? "";
 		}
 	}
-	calcular();
 }
 
-function criarTabela(nomeTabela, obj) {
-	const tabela = document.createElement("table");
-
-	const thead = document.createElement("thead");
-	const titulo = document.createElement("caption");
-
-	titulo.textContent = nomeTabela;
-
-	thead.innerHTML = `
-        <tr>
-            <th>Métrica</th>
-            <th>Segundos</th>
-            <th>Pace</th>
-        </tr>
-    `;
-	tabela.appendChild(titulo);
-	tabela.appendChild(thead);
-
-	const tbody = document.createElement("tbody");
-
-	for (const [nome, valor] of Object.entries(obj)) {
-		const tr = document.createElement("tr");
-
-		const tdNome = document.createElement("td");
-		tdNome.textContent = nome;
-
-		const tdValor = document.createElement("td");
-		tdValor.textContent =
-			typeof valor == "number"
-				? valor.toFixed(1)
-				: `${valor.min.toFixed(1)}–${valor.max.toFixed(1)}`;
-		const tdPace = document.createElement("td");
-
-		tdPace.textContent = typeof valor == "number" ? pace(valor) : faixa(valor.min, valor.max);
-
-		tr.appendChild(tdNome);
-		tr.appendChild(tdValor);
-		tr.appendChild(tdPace);
-
-		tbody.appendChild(tr);
+function registrarEventos() {
+	for (const campo of ["distancia", "tempo", "dataBaseSemana1", "dataConsulta"]) {
+		elementos[campo].addEventListener("input", () => {
+			estado[campo] = elementos[campo].value;
+			salvarEstado();
+			// Sincronizar semana se mudou a data
+			if (campo === "dataConsulta" || campo === "dataBaseSemana1") {
+				sincronizarPlanoComCalculado();
+			}
+			renderizar();
+		});
 	}
 
-	tabela.appendChild(tbody);
+	elementos.fase.addEventListener("change", () => {
+		const faseAnterior = estado.fase;
 
-	return tabela;
-}
+		estado.fase = elementos.fase.value;
 
-function calcular() {
-	const dados = {};
+		if (faseAnterior !== "temporada" && estado.fase === "temporada") {
+			const confirma = confirm("Deseja reiniciar a temporada a partir desta data?");
+			if (confirma) {
+				estado.dataInicioTemporada = estado.dataConsulta;
+				estado.semana = "P1";
+			}
+			estado.semanaVisualizada = "P1";
+		}
 
-	for (const campo of CAMPOS) {
-		dados[campo] = minParaSegundos(ELEMENTOS[campo].value);
-	}
+		if (faseAnterior === "temporada" && estado.fase === "base") {
+			estado.dataBaseSemana1 = estado.dataConsulta;
+			estado.semana = "A";
+			estado.semanaVisualizada = "A";
+		}
 
-	const { easyMin, easyMax, marathon, threshold, interval, repetition, prova5k } = dados;
-
-	const easyMedio = (easyMin + easyMax) / 2,
-		provaPace = prova5k / 5;
-
-	const calculaFaixa = (base, min, max) => ({
-		min: base * min,
-		max: base * max,
+		sincronizarPlanoComCalculado(true);
 	});
-	const calculados = {
-		leve: calculaFaixa(easyMedio, 0.97, 1.01),
-		limiar: calculaFaixa(repetition, 0.98, 1),
-		longo: calculaFaixa(marathon, 0.96, 1),
-		ritmoProva: calculaFaixa(provaPace, 0.977, 1),
-	};
-	const metricas = {
-		calculados,
 
-		base: {
-			seg: calculados.leve,
+	elementos.semanaAtualBtn.addEventListener("click", irParaSemanaAtual);
+	elementos.toggleMetricas.addEventListener("click", () => ajustarEstadoSecao("metricas"));
+	elementos.toggleNavegacao.addEventListener("click", () => ajustarEstadoSecao("navegacao"));
+}
 
-			terS1_4: calculaFaixa(interval, 0.945, 0.969),
-			terS5_7: calculaFaixa(repetition, 1, 1.015),
-			terS8_10: calculados.limiar,
+function sincronizarPlanoComCalculado(modoLeitor = false) {
+	const dataConsulta = parseData(estado.dataConsulta);
+	if (!dataConsulta) return;
 
-			qua: calculados.leve,
+	const indiceCiclo = (data, ciclo) =>
+		((Math.floor(diasEntre(data, dataConsulta) / 7) % ciclo.length) + ciclo.length) %
+		ciclo.length;
 
-			quiS1_4: calculaFaixa(threshold, 1.017, 1.038),
-			quiS5_10: calculados.limiar,
+	const config =
+		estado.fase === "temporada"
+			? {
+					data: parseData(estado.dataInicioTemporada),
+					ciclo: ["P1", "P2", "P3"],
+					reiniciar() {
+						Object.assign(estado, {
+							dataBaseSemana1: estado.dataConsulta,
+							dataInicioTemporada: null,
+							fase: "base",
+						});
+					},
+				}
+			: {
+					data: parseData(estado.dataBaseSemana1),
+					ciclo: ["A", "B", "C", "D"],
+					reiniciar() {
+						estado.dataBaseSemana1 = estado.dataConsulta;
+					},
+				};
 
-			sex: calculados.leve,
-		},
+	if (!config.data) return;
 
-		temporada: {
-			seg: calculados.leve,
+	const indice = indiceCiclo(config.data, config.ciclo);
 
-			ter: calculaFaixa(interval, 0.876, repetition / interval),
+	if (!indice && !modoLeitor) {
+		config.reiniciar();
+		estado.semana = estado.semanaVisualizada = "A";
+		preencherCampos();
+	} else {
+		modoLeitor
+			? (estado.semanaVisualizada = config.ciclo[indice])
+			: (estado.semana = estado.semanaVisualizada = config.ciclo[indice]);
+	}
+	salvarEstado();
+	renderizar();
+	return;
+}
 
-			qua: calculados.leve,
+function irParaSemanaAtual() {
+	const hojeFormatado = formatoDataInput(hoje());
+	estado.dataConsulta = hojeFormatado;
+	estado.semanaVisualizada = estado.semana;
+	elementos.dataConsulta.value = hojeFormatado;
+	salvarEstado();
+	renderizar();
+}
 
-			quiA: calculaFaixa(threshold, 0.953, 0.996),
-			quiB: calculaFaixa(threshold, 0.966, 0.983),
-			quiC: calculados.ritmoProva,
-
-			sex: calculados.leve,
-		},
-
-		preCompetitiva: {
-			seg: calculados.leve,
-
-			ter: calculados.ritmoProva,
-
-			qua: calculados.leve,
-
-			qui: threshold * 0.975,
-
-			sex: calculados.leve,
-		},
-	};
-
-	const tabelas = {
-		Base: metricas.base,
-
-		Temporada: metricas.temporada,
-
-		PreCompetitiva: metricas.preCompetitiva,
-	};
-
-	const r = document.getElementById("resultado");
-
-	r.innerHTML = "";
-
-	for (const [nomePagina, dadosPagina] of Object.entries(tabelas)) {
-		const tabela = criarTabela(nomePagina, dadosPagina);
-
-		r.appendChild(tabela);
+function renderizarMetricas(metadados) {
+	if (!metadados) {
+		elementos.metricasBasicas.innerHTML = `
+			<div class="card vazio">
+				<p>Informe a distancia e o tempo do teste para calcular as metricas.</p>
+			</div>
+		`;
+		elementos.resumoMetricas.innerHTML = "";
+		return;
 	}
 
-	const textoGerado = gerarTextoTreino(metricas);
+	const { calculados, variaveis } = metadados;
+	const metricas = [
+		["VDOT", calculados.vdot.toFixed(1)],
+		["Easy medio", formatarTempo(calculados.easyMedio)],
+		["Marathon", formatarTempo(calculados.marathon)],
+		["Threshold 1km", formatarTempo(calculados.threshold1000m)],
+		["Interval 1km", formatarTempo(calculados.interval1000m)],
+		["Interval 800m", formatarTempo(calculados.interval800m)],
+		["Interval 400m", formatarTempo(calculados.interval400m)],
+		["Interval 200m", formatarTempo(calculados.interval200m)],
+		["Repetition 400m", formatarTempo(calculados.repetition400m)],
+		["Fast reps 200m", formatarTempo(calculados.fastReps)],
+	];
 
-	document.getElementById("textoTreino").value = textoGerado;
-	salvarDados();
+	elementos.metricasBasicas.innerHTML = metricas
+		.map(
+			([nome, valor]) => `
+				<div class="metric-card">
+					<span>${nome}</span>
+					<strong>${valor}</strong>
+				</div>
+			`,
+		)
+		.join("");
+
+	elementos.resumoMetricas.innerHTML = Object.entries(variaveis)
+		.map(
+			([chave, valor]) => `
+				<div class="ritmo-card">
+					<span>${rotulosVariaveis[chave] || chave}</span>
+					<strong>${formatarValorRitmo(valor)}</strong>
+				</div>
+			`,
+		)
+		.join("");
 }
 
-function copiarTexto() {
-	const texto = document.getElementById("textoTreino");
+function ajustarEstadoSecao(nome) {
+	estado[`${nome}Colapsada`] = !estado[`${nome}Colapsada`];
 
-	texto.select();
+	const colapsada = estado[`${nome}Colapsada`];
+	const container = elementos[`${nome}Container`];
+	const toggle = elementos[`toggle${nome[0].toUpperCase()}${nome.slice(1)}`];
+	const texto = `${colapsada ? "Mostrar" : "Ocultar"} ${nome}`;
 
-	navigator.clipboard.writeText(texto.value);
+	container.classList.toggle("is-collapsed", colapsada);
+	toggle.classList.toggle("is-collapsed", colapsada);
 
-	alert("Texto copiado.");
+	toggle.setAttribute("aria-expanded", String(!colapsada));
+	toggle.setAttribute("aria-label", texto);
+	toggle.querySelector(".sr-only").textContent = texto;
+	salvarEstado();
 }
 
-function baixarTxt() {
-	const texto = document.getElementById("textoTreino").value;
+function renderizarCabecalho(semanaCalculada) {
+	const faseNome = NOME_FASES[estado.fase];
+	const labelSemana = `Semana ${estado.semana}`;
+	const calculada = semanaCalculada
+		? `Semana atual calculada: ${semanaCalculada.semana}`
+		: "Semana atual calculada: --";
 
-	const blob = new Blob([texto], { type: "text/plain" });
+	elementos.descricaoFase.textContent = `${faseNome} - ${labelSemana}`;
+	elementos.semanaAtual.textContent = calculada;
+}
 
-	const url = URL.createObjectURL(blob);
+function renderizarNavegacaoSemanas() {
+	const semanas = getSemanasFase(estado.fase);
 
-	const a = document.createElement("a");
+	elementos.gradeSemanas.innerHTML = semanas
+		.map(
+			(semana) => `
+				<button class="week-chip ${semana.identificador === estado.semanaVisualizada ? "active" : ""}" data-week="${semana.identificador}">
+					${semana.titulo}
+				</button>
+			`,
+		)
+		.join("");
 
-	a.href = url;
+	elementos.gradeSemanas.querySelectorAll("[data-week]").forEach((botao) => {
+		botao.addEventListener("click", () => {
+			estado.semanaVisualizada = botao.getAttribute("data-week");
+			salvarEstado();
+			renderizar();
+		});
+	});
+}
 
-	a.download = "treinamento.txt";
+function renderizarPlano(metricas) {
+	const semanas = getSemanasFase(estado.fase);
 
-	a.click();
+	const semanaExibida = estado.semanaVisualizada ?? estado.semana;
 
-	URL.revokeObjectURL(url);
+	const semanaSelecionada = semanas.find(
+		(semana) => String(semana.identificador) === String(semanaExibida),
+	);
+
+	if (!semanaSelecionada) {
+		elementos.visualizacaoPlano.innerHTML = `
+			<div class="card vazio">
+				Semana nao encontrada.
+			</div>
+		`;
+		return;
+	}
+
+	const dias = Object.entries(semanaSelecionada.dados).filter(
+		([chave]) => chave !== "identificador",
+	);
+
+	elementos.visualizacaoPlano.innerHTML = dias
+		.map(([nomeDia, dadosDia]) => renderizarDia(nomeDia, dadosDia, metricas))
+		.join("");
+}
+
+function renderizarDia(nomeDia, dia, metricas) {
+	// Caso especial: dia com opções alternativas
+	if (Array.isArray(dia.alternativas)) {
+		return renderizarDiaComAlternativas(nomeDia, dia, metricas);
+	}
+
+	const sessoes = Object.entries(dia).filter(([_, sessao]) => sessao);
+
+	const htmlSessoes = sessoes
+		.map(([nomeSessao, sessao]) => renderizarSessao(nomeSessao, sessao, metricas))
+		.join("");
+
+	return `
+		<section class="dia-card">
+			<h3>${formatarNomeDia(nomeDia)}</h3>
+
+			${htmlSessoes}
+		</section>
+	`;
+}
+
+function renderizarDiaComAlternativas(nomeDia, dia, metricas) {
+	const htmlAlternativas = dia.alternativas
+		.map((alternativa) => {
+			const htmlSessoes = Object.entries(alternativa)
+				.filter(([chave, valor]) => chave !== "nome" && valor)
+				.map(([nomeSessao, sessao]) => renderizarSessao(nomeSessao, sessao, metricas))
+				.join("");
+
+			return `
+				<div class="opcao-treino">
+					<h4>${alternativa.nome}</h4>
+
+					${htmlSessoes}
+				</div>
+			`;
+		})
+		.join("");
+
+	return `
+		<section class="dia-card">
+			<h3>${formatarNomeDia(nomeDia)}</h3>
+
+			${htmlAlternativas}
+		</section>
+	`;
+}
+
+function formatarNomeDia(nomeDia) {
+	const nomes = {
+		segunda: "Segunda-feira",
+		terca: "Terça-feira",
+		quarta: "Quarta-feira",
+		quinta: "Quinta-feira",
+		sexta: "Sexta-feira",
+		sabado: "Sábado",
+		domingo: "Domingo",
+	};
+
+	return nomes[nomeDia] || nomeDia;
+}
+
+function renderizarSessao(nomeSessao, sessao, metricas) {
+	if (!sessao?.blocos?.length) {
+		return "";
+	}
+
+	const htmlBlocos = sessao.blocos.map((bloco) => renderizarBloco(bloco, metricas)).join("");
+
+	return `
+		<div class="sessao-card">
+			<h4>${formatarNomeSessao(nomeSessao)}</h4>
+
+			${htmlBlocos}
+		</div>
+	`;
+}
+
+function renderizarBloco(bloco, metricas) {
+	const descricao = gerarDescricaoBloco(bloco);
+
+	const ritmoHtml = renderizarRitmoBloco(bloco, metricas);
+
+	const descansoHtml = bloco.descansoEmMin
+		? `<div class="bloco-info">
+				<strong>Descanso:</strong>
+				${formatarDescanso(bloco.descansoEmMin)}
+		   </div>`
+		: "";
+
+	const obsHtml = bloco.obs
+		? `<div class="bloco-info">
+				<strong>Obs:</strong>
+				${bloco.obs}
+		   </div>`
+		: "";
+
+	return `
+		<div class="bloco-card">
+			<div class="bloco-titulo">
+				${bloco.tipo}
+			</div>
+
+			<div class="bloco-descricao">
+				${descricao}
+			</div>
+
+			${ritmoHtml}
+
+			${descansoHtml}
+
+			${obsHtml}
+		</div>
+	`;
+}
+
+function renderizarRitmoBloco(bloco, metricas) {
+	if (!metricas) {
+		return "";
+	}
+
+	const chave = bloco.ritmo;
+
+	if (!chave) {
+		return "";
+	}
+
+	const ritmo = metricas.variaveis[chave];
+
+	if (!ritmo) {
+		return "";
+	}
+
+	return `
+		<div class="bloco-info">
+			<strong>Ritmo:</strong>
+			${formatarValorRitmo(ritmo)}
+		</div>
+	`;
+}
+
+function renderizar() {
+	const dataBaseSemana1 = parseData(elementos.dataBaseSemana1.value);
+	const dataConsulta = parseData(elementos.dataConsulta.value);
+	const semanaCalculada = calcularSemanaBase(dataBaseSemana1, dataConsulta);
+
+	const semanas = getSemanasFase(estado.fase);
+
+	if (!semanas.some((semana) => semana.identificador === estado.semana)) {
+		estado.semana = semanas[0].identificador;
+		salvarEstado();
+	}
+	const metricas = calcularMetricas();
+	renderizarCabecalho(semanaCalculada);
+	renderizarPlano(metricas);
+	renderizarMetricas(metricas);
+	renderizarNavegacaoSemanas();
 }

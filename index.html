@@ -3,76 +3,108 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Calculadora de Paces</title>
+		<title>Plano de Treino Dinamico</title>
 		<link rel="stylesheet" href="style.css" />
 	</head>
+	<body class="app-shell">
+		<aside class="sidebar">
+			<header class="sidebar__header">
+				<h1>Plano de treino dinamico</h1>
+			</header>
 
-	<body>
-		<table>
-			<caption>
-				Calculadora de Métricas
-			</caption>
-			<thead>
-				<tr>
-					<th>ZONA</th>
-					<th>MIN</th>
-					<th>MAX</th>
-				</tr>
-			</thead>
+			<section class="sidebar__section">
+				<div class="hero-card hero-card--compact">
+					<strong id="descricaoFase">Base - Semana 1</strong>
+					<span id="semanaAtual">Você esta na semana: --</span>
+				</div>
+			</section>
 
-			<tbody>
-				<tr>
-					<td>EASY</td>
-					<td><input type="time" id="easyMin" placeholder="mm:ss" /></td>
-					<td><input type="time" id="easyMax" placeholder="mm:ss" /></td>
-				</tr>
+			<section class="sidebar__section">
+				<h2>Entradas</h2>
+				<div class="grid-form">
+					<div class="field">
+						<label for="distancia">Distancia do teste (m)</label>
+						<input id="distancia" type="number" min="1" step="1" />
+					</div>
 
-				<tr>
-					<td>MARATHON</td>
-					<td><input type="time" id="marathon" placeholder="mm:ss" /></td>
-					<td>-</td>
-				</tr>
+					<div class="field">
+						<label for="tempo">Tempo do teste (min)</label>
+						<input id="tempo" type="time" />
+					</div>
 
-				<tr>
-					<td>THRESHOLD</td>
-					<td><input type="time" id="threshold" placeholder="mm:ss" /></td>
-					<td>-</td>
-				</tr>
+					<div class="field">
+						<label for="dataBaseSemana1">Data de inicio da base</label>
+						<input id="dataBaseSemana1" type="date" />
+					</div>
 
-				<tr>
-					<td>INTERVAL</td>
-					<td><input type="time" id="interval" placeholder="mm:ss" /></td>
-					<td>-</td>
-				</tr>
+					<div class="field">
+						<label for="dataConsulta">Data de consulta</label>
+						<input id="dataConsulta" type="date" />
+					</div>
+				</div>
+			</section>
 
-				<tr>
-					<td>REPETITION</td>
-					<td><input type="time" id="repetition" placeholder="mm:ss" /></td>
-					<td>-</td>
-				</tr>
+			<section class="sidebar__section">
+				<div class="section-toggle">
+					<h2>Metricas</h2>
+					<button
+						id="toggleMetricas"
+						type="button"
+						class="toggle-button"
+						aria-expanded="true"
+						aria-label="Ocultar metricas"
+					>
+						<span class="toggle-icon" aria-hidden="true">^</span>
+						<span class="sr-only">Ocultar metricas</span>
+					</button>
+				</div>
+				<div id="metricasContainer" class="collapsible-content">
+					<div id="metricasBasicas" class="metrics-grid"></div>
+					<div id="resumoMetricas" class="range-grid"></div>
+				</div>
+			</section>
+		</aside>
+		<main class="content">
+			<section class="panel">
+				<div class="section-toggle">
+					<h2>Navegacao</h2>
+					<button
+						id="toggleNavegacao"
+						type="button"
+						class="toggle-button"
+						aria-expanded="true"
+						aria-label="Ocultar navegacao"
+					>
+						<span class="toggle-icon" aria-hidden="true">^</span>
+						<span class="sr-only">Ocultar navegacao</span>
+					</button>
+				</div>
+				<div id="navegacaoContainer" class="collapsible-content">
+					<div class="panel-header">
+						<div class="field field--inline">
+							<label for="fase">Fase</label>
+							<select id="fase">
+								<option value="base">Base</option>
+								<option value="temporada">Temporada</option>
+							</select>
+						</div>
+						<div class="nav-actions">
+							<button id="semanaAtualBtn" type="button">Semana atual</button>
+						</div>
+					</div>
+					<div class="week-label">Semana</div>
+					<div id="gradeSemanas" class="week-grid"></div>
+				</div>
+			</section>
 
-				<tr>
-					<td>PROVA 5KM</td>
-					<td><input type="time" id="prova5k" placeholder="mm:ss" /></td>
-					<td>-</td>
-				</tr>
-			</tbody>
-		</table>
+			<section class="panel panel--grow">
+				<div class="dias-grid" id="visualizacaoPlano"></div>
+			</section>
+		</main>
 
-		<button id="btnCalcular">Calcular</button>
-
-		<div class="resultado" id="resultado"></div>
-		<div style="margin-top: 30px">
-			<h2>Plano Gerado</h2>
-
-			<textarea id="textoTreino"></textarea>
-
-			<br /><br />
-
-			<button onclick="copiarTexto()">Copiar Texto</button>
-
-			<button onclick="baixarTxt()">Baixar .txt</button>
-		</div>
-		<script src="script.js" type="module"></script>
+		<script src="calculos.js"></script>
+		<script src="template.js"></script>
+		<script src="utils.js"></script>
+		<script src="script.js"></script>
 	</body>
 </html>

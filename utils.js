@@ -1,190 +1,190 @@
-export function minParaSegundos(tempo) {
+function minParaSegundos(tempo) {
 	const [min, seg] = tempo.split(":").map(Number);
 
 	return min * 60 + seg;
 }
 
-export function pace(segundos) {
-	const min = Math.floor(segundos / 60);
-	const seg = Math.round(segundos % 60)
-		.toString()
-		.padStart(2, "0");
-
-	return `${min}:${seg}`;
+function aplicarAjustesIniciais() {
+	if (!estado.semana) {
+		estado.semana = pegarSemanaInicial(estado.fase);
+		estado.semanaVisualizada = estado.semana;
+		salvarEstado();
+	}
 }
 
-function faixaObj(obj) {
-	return faixa(obj.min, obj.max);
+function hoje() {
+	return new Date();
 }
 
-export function faixa(min, max) {
-	let media = (min + max) / 2;
-	return `${pace(min)} < ${pace(media)} > ${pace(max)}`;
+function formatoDataInput(data) {
+	return data.toISOString().slice(0, 10);
 }
 
-export function gerarTextoTreino(metricas) {
-	return `
-    BASE (Semanas 1–10)
+function parseData(value) {
+	if (!value) return null;
 
-    Segunda-feira – Corrida leve + acelerações
+	const data = new Date(`${value}T00:00:00`);
 
-    40min a ${faixaObj(metricas.base.seg)}
-    6x100m acelerações
+	return Number.isNaN(data.getTime()) ? null : data;
+}
 
+function diasEntre(inicio, fim) {
+	const inicioUtc = Date.UTC(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
+	const fimUtc = Date.UTC(fim.getFullYear(), fim.getMonth(), fim.getDate());
+	const msPorDia = 24 * 60 * 60 * 1000;
 
-    Terça-feira – Intervalados VO₂máx
+	return Math.floor((fimUtc - inicioUtc) / msPorDia);
+}
 
-    Sem. 1–4: 5–6x800m a ${faixaObj(metricas.base.terS1_4)} | 2min trote
-    Sem. 5–7: 6x1000m a ${faixaObj(metricas.base.terS5_7)} | 2–3min trote
-    Sem. 8–10: 6–8x1000m a ${faixaObj(metricas.base.terS8_10)} | 2–3min trote
+function calcularSemanaBase(dataBaseSemana1, dataConsulta) {
+	if (!dataBaseSemana1 || !dataConsulta) return null;
 
+	const diffDias = diasEntre(dataBaseSemana1, dataConsulta);
+	const semana = Math.floor(diffDias / 7) + 1;
 
-    Quarta-feira – Pliometria + Força
+	return { diffDias, semana };
+}
 
-    20min a ${faixaObj(metricas.base.qua)}
+function formatarFaixa(faixa) {
+	if (!faixa || typeof faixa.min !== "number" || typeof faixa.max !== "number") return "-";
 
+	return `${formatarTempo(faixa.min)} - ${formatarTempo(faixa.max)}`;
+}
 
-    Quinta-feira – TREINO DE LIMIAR
+function formatarNumero(valor) {
+	return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(valor);
+}
 
-    Sem. 1–4:
-        6km a ${faixaObj(metricas.base.quiS1_4)}
-        2x400m a ritmo de prova (${faixaObj(metricas.base.quiS5_10)}) | 2min trote
+function formatarDuracaoMinutos(valor) {
+	return `${formatarNumero(valor)} min`;
+}
 
-    Sem. 5–7:
-        20min contínuos a ${faixaObj(metricas.base.quiS5_10)}
-        2x300m leves/rápidos | 2min trote
+function getPlano() {
+	return globalThis.plano;
+}
 
-    Sem. 8–10:
-        4x8min a ${faixaObj(metricas.base.quiS5_10)}
-        1x400m a ritmo de prova (${faixaObj(metricas.calculados.ritmoProva)})
+function getSemanasFase(fase) {
+	const faseSelecionada = getPlano()[fase === "base" || fase === "temporada" ? fase : "base"];
 
+	return Object.values(faseSelecionada).map((semana) => ({
+		identificador: semana.identificador,
+		titulo: `Semana ${semana.identificador}`,
+		dados: semana,
+	}));
+}
 
-    Sexta-feira – Corrida leve + acelerações
+function pegarSemanaInicial(fase) {
+	if (fase === "base") return "A";
+	if (fase === "temporada") return "P1";
+	return 1;
+}
 
-    50min a ${faixaObj(metricas.base.sex)}
-    4x100m acelerações
+function calcularMetricas() {
+	const distancia = Number(elementos.distancia.value);
+	const tempo = minParaSegundos(elementos.tempo.value) / 60;
 
+	if (!distancia || !tempo) return null;
 
-    Sábado – Longão + ritmo de prova
+	const calculados = calcularRitmos(distancia, tempo);
+	const variaveis = calcularVariaveisTreino(calculados);
 
-    Sem. 1–4:
-        7km a ${faixaObj(metricas.calculados.longo)}
-        3km a ${faixaObj(metricas.base.quiS5_10)}
+	return { calculados, variaveis };
+}
 
-    Sem. 5–10:
-        7km a ${faixaObj(metricas.calculados.longo)}
-        2km limiar (${faixaObj(metricas.base.quiS5_10)})
-        1km a ritmo de prova (${faixaObj(metricas.calculados.ritmoProva)})
+function formatarTempo(minutos) {
+	if (typeof minutos !== "number" || Number.isNaN(minutos)) return "--:--";
 
+	const totalSegundos = Math.round(minutos * 60);
+	const mins = Math.floor(totalSegundos / 60);
+	const segs = totalSegundos % 60;
 
-    Domingo – Core e mobilidade
+	return `${mins}:${String(segs).padStart(2, "0")}`;
+}
 
-    ---
+function formatarValorRitmo(valor) {
+	if (!valor) return "-";
 
-    TEMPORADA (Semanas 11–52)
+	const ritmoMedio = (valor.min + valor.max) / 2;
 
-    Segunda-feira – Corrida leve + acelerações
+	return `${formatarTempo(valor.min)} < ${formatarTempo(ritmoMedio)} > ${formatarTempo(valor.max)}`;
+}
 
-    8–10km a ${faixaObj(metricas.temporada.seg)}
-    6–8x100m acelerações
+function formatarTempoTreino(valor) {
+	if (Array.isArray(valor)) {
+		if (valor.length < 2) return "-";
 
+		return `${formatarDuracaoMinutos(valor[0])} - ${formatarDuracaoMinutos(valor[1])}`;
+	}
 
-    Terça-feira – Intervalados de VO₂máx / velocidade
+	if (valor === null || valor === undefined) return "-";
 
-    6–8x800–1000m a ${faixaObj(metricas.temporada.ter)}
-    90–180s trote
+	return formatarDuracaoMinutos(valor);
+}
 
-
-    Quarta-feira – Pliometria + Força
-
-    20min a ${faixaObj(metricas.temporada.qua)}
-    
-
-    Quinta-feira – Limiar (ajuste principal da Temporada)
-
-    Sem.A:
-        6km a ${faixaObj(metricas.temporada.quiA)}
-        2x400m ritmo de prova
-
-    Sem.B:
-        5x7min a ${faixaObj(metricas.temporada.quiB)} | 70s trote
-        1x400m forte (técnico, não exaustivo)
-
-    Sem.C:
-        4km a ${faixaObj(metricas.temporada.quiC)}
-        2x800m a ritmo de prova
-
-
-    Sexta-feira – Corrida leve + acelerações
-
-    6–8km a ${faixaObj(metricas.temporada.sex)}
-    4–6x100m acelerações
-
-
-    Sábado – Longão + Ritmo de Prova
-
-    Semana leve:
-        6–8km a ${faixaObj(metricas.calculados.longo)}
-        1–2km de limiar (${faixaObj(metricas.temporada.quiB)})
-        1–2km a ritmo de prova (${faixaObj(metricas.calculados.ritmoProva)})
-
-    Semanas pesada:
-        8–10km a ${faixaObj(metricas.calculados.longo)}
-        2–3km a ritmo de prova (${faixaObj(metricas.calculados.ritmoProva)})
-
-
-    Domingo – Core / Mobilidade / Recuperação leve
-
-    ---
-
-    Teste/Corrida a cada 5–6 semanas e recalcular paces no site
-
-    ---
-
-    Pré-Competitiva (antes de qualquer competição)
-
-    Segunda-feira – Corrida leve + acelerações
-
-    30min a ${faixaObj(metricas.preCompetitiva.seg)}
-    4–5x100m acelerações
-
-
-    Terça-feira – Intervalados curtos
-
-    4x800m a ritmo de prova (${faixaObj(metricas.calculados.ritmoProva)})
-    2min trote entre séries
-
-
-    Quarta-feira – Pliometria leve + core
-
-    20min a ${faixaObj(metricas.preCompetitiva.qua)}
-
-
-    Quinta-feira – Corrida de ritmo + tiro curto
-
-    5km a ${pace(metricas.preCompetitiva.qui)}
-    1x400m ritmo de prova | 2min trote
-
-
-    Sexta-feira – Corrida leve
-
-    20min a ${faixaObj(metricas.preCompetitiva.sex)}
-
-
-    Sábado – Ajuste conforme dia da competição
-
-    Se competição for no sábado: dia da prova
-
-    Se competição for no domingo:
-    corrida leve de 3–4km ou mobilidade
-
-
-    Domingo – Ajuste conforme dia da competição
-
-    Se competição foi no sábado:
-    corrida leve de 3–4km ou mobilidade
-
-    Se competição for no domingo:
-    dia da prova
-    `;
+function formatarNomeDia(nomeDia) {
+	const nomes = {
+		segunda: "Segunda-feira",
+		terca: "Terça-feira",
+		quarta: "Quarta-feira",
+		quinta: "Quinta-feira",
+		sexta: "Sexta-feira",
+		sabado: "Sábado",
+		domingo: "Domingo",
+	};
+
+	return nomes[nomeDia] || nomeDia;
+}
+
+function formatarNomeSessao(nomeSessao) {
+	const nomes = {
+		sessao1: "Sessão 1",
+		sessao2: "Sessão 2",
+		sessao3: "Sessão 3",
+	};
+
+	return nomes[nomeSessao] || nomeSessao;
+}
+
+function gerarDescricaoBloco(bloco) {
+	if (bloco.repeticoes) {
+		if (bloco.distanciaEmMetros) {
+			return `${bloco.repeticoes}x${formatarDistancia(bloco.distanciaEmMetros)}`;
+		}
+
+		if (bloco.tempoEmMin) {
+			return `${bloco.repeticoes}x${bloco.tempoEmMin} min`;
+		}
+	}
+
+	if (bloco.tempoEmMin) {
+		return formatarTempoTreino(bloco.tempoEmMin);
+	}
+
+	if (bloco.distanciaEmMetros) {
+		const distancia = bloco.distanciaEmMetros;
+
+		if (Array.isArray(distancia)) {
+			return `${formatarDistancia(distancia[0])} - ${formatarDistancia(distancia[1])}`;
+		}
+
+		return formatarDistancia(distancia);
+	}
+
+	return "-";
+}
+
+function formatarDistancia(valor) {
+	if (valor >= 1000) {
+		return `${valor / 1000}km`;
+	}
+
+	return `${valor}m`;
+}
+
+function formatarDescanso(valor) {
+	if (Array.isArray(valor)) {
+		return `${valor[0]}-${valor[1]} min`;
+	}
+
+	return `${valor} min`;
 }
